@@ -1,12 +1,20 @@
 # Slurm-101
 
-
-## [WIP] Don't Read It!!!!
 I start learning slurm for about 1 week, so needing some time to digest and organize the note.
 
 Setup a single-host slurm cluster for local dev.
 
 For unbuntu 20.04
+
+Suppose `sshd` server already running. For details, see [OpenSSH server](https://ubuntu.com/server/docs/openssh-server)
+
+
+
+
+## Table of Contents
+* []()
+
+
 
 
 * Good resources but too vague for me 
@@ -14,21 +22,121 @@ For unbuntu 20.04
     * [Quick Start Administrator Guide](https://slurm.schedmd.com/quickstart_admin.html)
         * Official guide
 
-
-
 ## Steps
-### Munge
-* https://github.com/SergioMEV/slurm-for-dummies?tab=readme-ov-file
+### Munge (~~Optional~~)
+Munge is used to auth(? For a single-host slurm cluster setup, can we ignore this? No, but why?
+* https://github.com/SergioMEV/slurm-for-dummies?tab=readme-ov-file 
     * No `slurmrestd`
 
+sudo apt install munge libmunge2 libmunge-dev
+munge -n | unmunge | grep STATUS # Should see success(0)
+if don't 
+sudo /usr/sbin/create-munge-key
+
+sudo chown -R munge: /etc/munge/ /var/log/munge/ /var/lib/munge/ /run/munge/
+sudo chmod 0700 /etc/munge/ /var/log/munge/ /var/lib/munge/
+sudo chmod 0755 /run/munge/
+sudo chmod 0700 /etc/munge/munge.key
+sudo chown -R munge: /etc/munge/munge.key
+
+sudo systemctl enable munge
+sudo systemctl restart munge
+
+
 ### A Dedicated slurm user
+Add a dedicated slurm user, for processes or services
+No need to interact with ctld with this user (nologin)
+    * Using a normal user is enough?
+```
+adduser --system -uid <uid> --group slurm
+
+# Check added user
+cat /etc/passwd | grep <uid>
+```
+Refer to [here](https://manpages.ubuntu.com/manpages/xenial/man8/adduser.8.html) and read section    Add a system user
+
 Mine is abaowei in group slurm
 But most tutorials recommend just create a slurm:slurm user in group
 * https://blog.csdn.net/xuecangqiuye/article/details/109687256
     * This article is only used to prove that it creates a dedicated slurm user, I don't refer to any other settings.
 
+
 It's important to correctly setup dir ownership using `chown`
 I don't setup in the beginning, which is troublesome for me during the setup process.
+/etc/slurm -> root: store slurm.conf slurmdbd.conf
+/var/log/slurm -> slurm: store slurm service log
+/var/run/slurm -> slurm: don't know for what? 
+
+sudo mkdir -p /var/spool/slurmctld /var/spool/slurmd /var/log/slurm
+sudo chown -R slurm: /var/spool/slurmctld /var/spool/slurmd /var/log/slurm
+
+
+### Download slurm source
+* Go to website here and choose verison, OI choose 05
+* Copy url and run
+    * cd to your dir and wget url to
+    * wget -P <dst> url
+#### Build pkg fist
+https://slurm.schedmd.com/quickstart_admin.html#debuild
+```
+wget -P setup_slurm/ https://download.schedmd.com/slurm/slurm-24.05.5.tar.bz2
+
+sudo apt-get update
+sudo apt-get install build-essential fakeroot devscripts equivs
+tar -xaf slurm*tar.bz2
+
+#cd to the directory containing the Slurm source
+#Install the Slurm package dependencies:
+sudo mk-build-deps -i debian/control
+#Build the Slurm packages
+debuild -b -uc -us
+
+
+```
+#### INstall pkg
+Install only ctld and d
+https://slurm.schedmd.com/quickstart_admin.html#pkg_install
+```
+cd .. # deb files are there (parent dir)
+
+sudo dpkg -i slurm-smd_24.05.5-1_amd64.deb  # Seems to be a must before installing the following
+sudo dpkg -i slurm-smd-slurmctld_24.05.5-1_amd64.deb
+sudo dpkg -i slurm-smd-slurmd_24.05.5-1_amd64.deb
+sudo dpkg -i slurm-smd-client_24.05.5-1_amd64.deb  # For CLI
+```
+
+### Setup conf
+clustername: localcluster
+SlurmctldHost: localhost
+NodeName: localhost
+
+> lscpu | egrep 'Socket|Thread|CPU\(s\)'
+16 CPUs, 1 Sockets, 8 CoresPerSocket, 2 ThreadsPerCore
+> free -m # use available
+30528 RealMemory
+
+ProctrackType: LinuxProc
+SlurmctldLogFile=/var/log/slurm/slurmctld.log
+SlurmdLogFile=/var/log/slurm/slurmd.log
+
+Submit form, copy content and write to /etc/slurm/slurm.conf
+
+
+## Start service
+sudo systemctl enable slurmctld
+sudo systemctl start slurmctld
+
+sudo systemctl enable slurmd
+sudo systemctl start slurmd
+
+
+## Try some commands
+If state == drain
+> scontrol update nodename=localhost state=idle
+> sinfo
+> srun -N 1 hostname  
+
+
 
 
 
