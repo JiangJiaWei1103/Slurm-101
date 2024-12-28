@@ -155,15 +155,28 @@ https://lists.schedmd.com/pipermail/slurm-users/2022-March/008497.html
 https://github.com/aws/aws-parallelcluster/issues/3865
 
 
+## Paths
+* `/var/lib/slurm`: Have some info about `slurmctld` and `slurmd`, but don't know the details
+* `~/dev/Slurm-101`: All deb files for installing packages. 
+
+
+
+
 ## Result
 Now, we're able to interact with slurm through python interface, as shown below:
 
 ![Screenshot 2024-12-15 at 11 42 11 PM](https://github.com/user-attachments/assets/071018ee-f1ce-415b-a733-fe79e0a7245d)
 
+
 ## Todos
 * [ ] Why to use `cgroup.conf`
 * [ ] Port forward and use postman for quick test
 * [ ] Use docker-compose to start all services at once 
+
+
+## Use Case
+### Flyte Slurm Agent
+See https://github.com/flyteorg/flytekit/pull/3005. Stay tuned!
 
 
 
