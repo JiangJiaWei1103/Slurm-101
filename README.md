@@ -8,7 +8,8 @@ This guide has been tested on Ubuntu 20.04.6 LTS with the `sshd` service already
 ## Table of Contents
 * [Setup a Tiny Slurm Cluster](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#setup-a-tiny-slurm-cluster)
     * [MUNGE First](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#munge-first)
-    * []()
+    * [Create a Dedicated Slurm User](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#create-a-dedicated-slurm-user)
+    * [Make Slurm Run](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#make-slurm-run)
 * [Use Case](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#use-case)
 
 ## Setup a Tiny Slurm Cluster
@@ -49,35 +50,32 @@ To check if the daemon runs as expected, we can either use `systemctl status mun
 
 I supposed I could ignore this step for the tiny setup, but it turns out this step is necessary. Still pondering why...
 
-### A Dedicated slurm user
-Add a dedicated slurm user, for processes or services
-No need to interact with ctld with this user (nologin)
-    * Using a normal user is enough?
-```
-adduser --system -uid <uid> --group slurm
+### Create a Dedicated Slurm User 
+> The *SlurmUser* must be created as needed prior to starting Slurm and must exist on all nodes in your cluster.
 
-# Check added user
+Before installing and running `slurmctld` and `slurmd`, we create a dedicated Slurm system user first. This setup order may be different from the [official instructions](https://slurm.schedmd.com/quickstart_admin.html#quick_start), but we find that this can avoid some troubles of creating an user and altering folder ownership afterward.
+
+To create a dedicated Slurm user, we run the following command. We make sure `uid` is equal to `gid` to keep our nose clean. For details about adding a system user, please refere to the section [Add a system user](https://manpages.ubuntu.com/manpages/oracular/en/man8/adduser.8.html).
+```
+# Choose an uid (we choose 152)
+# A system user usually has an uid in the range of 0-999
+adduser --system --uid <uid> --group --home /var/lib/slurm slurm
+
+# Check Slurm user
 cat /etc/passwd | grep <uid>
 ```
-Refer to [here](https://manpages.ubuntu.com/manpages/xenial/man8/adduser.8.html) and read section    Add a system user
 
-Mine is abaowei in group slurm
-But most tutorials recommend just create a slurm:slurm user in group
-* https://blog.csdn.net/xuecangqiuye/article/details/109687256
-    * This article is only used to prove that it creates a dedicated slurm user, I don't refer to any other settings.
-
-
-It's important to correctly setup dir ownership using `chown`
-I don't setup in the beginning, which is troublesome for me during the setup process.
-/etc/slurm -> root: store slurm.conf slurmdbd.conf
-/var/log/slurm -> slurm: store slurm service log
-/var/run/slurm -> slurm: don't know for what? 
-
+It's of vital importance to set correct ownership of specific Slurm-related directories to prevent access issue. Directories mentioned below will be created automatically when we start Slurm services. However, we decide to manually create them and alter the ownership beforehand.
+```
 sudo mkdir -p /var/spool/slurmctld /var/spool/slurmd /var/log/slurm
 sudo chown -R slurm: /var/spool/slurmctld /var/spool/slurmd /var/log/slurm
+```
+<!-- /etc/slurm (root): Store `slurm.conf` and `slurmdbd.conf` -->
+<!-- /var/run/slurm (slurm): Don't know for what -->
 
+### Make Slurm Run
+After the preparatory work is complete, we move on to the core steps.
 
-### Download slurm source
 * Go to website here and choose verison, OI choose 05
 * Copy url and run
     * cd to your dir and wget url to
@@ -137,6 +135,10 @@ sudo systemctl start slurmd
 
 
 ## Try some commands
+No need to interact with ctld with slurm system user (nologin)?
+    * Using a normal user is enough?
+This is related to client, having nothing to do with this....
+
 If state == drain
 > scontrol update nodename=localhost state=idle
 > sinfo
@@ -302,6 +304,9 @@ See https://github.com/flyteorg/flytekit/pull/3005. Stay tuned!
 * [Quick Start Administrator Guide](https://www.schedmd.com/slurm/installation-tutorial/)
 * [SergioMEV/slurm-for-dummies](https://github.com/SergioMEV/slurm-for-dummies)
 
+
+### Chinese
+* [Slurm 20.02.3 CentOS 7.6 slurm slurmdbd 安装教程 No. 5-1](https://blog.csdn.net/xuecangqiuye/article/details/109687256)
 
 
 
