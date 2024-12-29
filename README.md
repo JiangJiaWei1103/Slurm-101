@@ -6,34 +6,48 @@ This guide has been tested on Ubuntu 20.04.6 LTS with the `sshd` service already
 
 
 ## Table of Contents
-* []()
+* [Setup a Tiny Slurm Cluster](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#setup-a-tiny-slurm-cluster)
+    * [MUNGE First](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#munge-first)
+    * []()
+* [Use Case](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#use-case)
 
+## Setup a Tiny Slurm Cluster
+### MUNGE First
+> [MUNGE](https://dun.github.io/munge/) is an authentication service, allowing a process to authenticate the UID and GID of another local or remote process within a group of hosts having common users and groups.
 
-* Good resources but too vague for me 
-    * https://www.schedmd.com/slurm/installation-tutorial/
-    * [Quick Start Administrator Guide](https://slurm.schedmd.com/quickstart_admin.html)
-        * Official guide
-
-## Steps
-### Munge (~~Optional~~)
-Munge is used to auth(? For a single-host slurm cluster setup, can we ignore this? No, but why?
-* https://github.com/SergioMEV/slurm-for-dummies?tab=readme-ov-file 
-    * No `slurmrestd`
-
+First, we install necessary packages. 
+```shell
 sudo apt install munge libmunge2 libmunge-dev
-munge -n | unmunge | grep STATUS # Should see success(0)
-if don't 
-sudo /usr/sbin/create-munge-key
+```
 
+Then, we run the following command to generate a MUNGE credential, decode and verify the encrypted token, and filter the output to show the verification result.
+```shell
+munge -n | unmunge | grep STATUS
+```
+
+A status of `STATUS: Success(0)` is expected and the MUNGE key is stored at `/etc/munge/munge.key`. If the key is absent, please run the following command to create one manually.
+```shell
+sudo /usr/sbin/create-munge-key
+```
+
+The `munged` daemon should be run as a dedicated non-privileged user. Fortunately, this user is automatically created and called "munge". We use the following commands to change the ownership of specific MUNGE-related directories and adjust permissions.
+```shell
 sudo chown -R munge: /etc/munge/ /var/log/munge/ /var/lib/munge/ /run/munge/
 sudo chmod 0700 /etc/munge/ /var/log/munge/ /var/lib/munge/
 sudo chmod 0755 /run/munge/
 sudo chmod 0700 /etc/munge/munge.key
 sudo chown -R munge: /etc/munge/munge.key
+```
 
+Finally, we make `munged` start at boot and restart the service. 
+```
 sudo systemctl enable munge
 sudo systemctl restart munge
+```
 
+To check if the daemon runs as expected, we can either use `systemctl status munge` or inspect the log file under `/var/log/munge`.
+
+I supposed I could ignore this step for the tiny setup, but it turns out this step is necessary. Still pondering why...
 
 ### A Dedicated slurm user
 Add a dedicated slurm user, for processes or services
@@ -282,6 +296,12 @@ See https://github.com/flyteorg/flytekit/pull/3005. Stay tuned!
 
 ## Other References
 * slurm setup 小專欄https://blog.csdn.net/xuecangqiuye/category_10212500.html
+
+
+## References
+* [Quick Start Administrator Guide](https://www.schedmd.com/slurm/installation-tutorial/)
+* [SergioMEV/slurm-for-dummies](https://github.com/SergioMEV/slurm-for-dummies)
+
 
 
 
