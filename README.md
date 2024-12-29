@@ -1,20 +1,12 @@
 # Slurm-101
 
-I start learning slurm for about 1 week, so needing some time to digest and organize the note.
+Setting up a Slurm cluster can be challenging due to the limited detail in the [official instructions](https://slurm.schedmd.com/quickstart_admin.html#quick_start). This guide simplifies the process, focusing on configuring a single-host Slurm environment for local development and testing. Specifically, we cover `slurmctld` (the central management daemon) and `slurmd` (the compute node daemon) now and plan to include `slurmdbd` and `slurmrestd` in the future.
 
-Setup a single-host slurm cluster for local dev.
-
-For unbuntu 20.04
-
-Suppose `sshd` server already running. For details, see [OpenSSH server](https://ubuntu.com/server/docs/openssh-server)
-
-
+This guide has been tested on Ubuntu 20.04.6 LTS with the `sshd` service already running. For instructions on setting up `sshd`, please refer to the [OpenSSH server documentation](https://ubuntu.com/server/docs/openssh-server).
 
 
 ## Table of Contents
 * []()
-
-
 
 
 * Good resources but too vague for me 
