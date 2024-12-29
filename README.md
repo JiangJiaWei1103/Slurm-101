@@ -10,6 +10,7 @@ This guide has been tested on Ubuntu 20.04.6 LTS with the `sshd` service already
     * [MUNGE First](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#munge-first)
     * [Create a Dedicated Slurm User](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#create-a-dedicated-slurm-user)
     * [Make Slurm Run](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#make-slurm-run)
+* [Try Some Commands](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#try-some-commands)
 * [Use Case](https://github.com/JiangJiaWei1103/Slurm-101/blob/main/README.md#use-case)
 
 ## Setup a Tiny Slurm Cluster
@@ -41,7 +42,7 @@ sudo chown -R munge: /etc/munge/munge.key
 ```
 
 Finally, we make `munged` start at boot and restart the service. 
-```
+```shell
 sudo systemctl enable munge
 sudo systemctl restart munge
 ```
@@ -56,7 +57,7 @@ I supposed I could ignore this step for the tiny setup, but it turns out this st
 Before installing and running `slurmctld` and `slurmd`, we create a dedicated Slurm system user first. This setup order may be different from the [official instructions](https://slurm.schedmd.com/quickstart_admin.html#quick_start), but we find that this can avoid some troubles of creating an user and altering folder ownership afterward.
 
 To create a dedicated Slurm user, we run the following command. We make sure `uid` is equal to `gid` to keep our nose clean. For details about adding a system user, please refere to the section [Add a system user](https://manpages.ubuntu.com/manpages/oracular/en/man8/adduser.8.html).
-```
+```shell
 # Choose an uid (we choose 152)
 # A system user usually has an uid in the range of 0-999
 adduser --system --uid <uid> --group --home /var/lib/slurm slurm
@@ -66,7 +67,7 @@ cat /etc/passwd | grep <uid>
 ```
 
 It's of vital importance to set correct ownership of specific Slurm-related directories to prevent access issue. Directories mentioned below will be created automatically when we start Slurm services. However, we decide to manually create them and alter the ownership beforehand.
-```
+```shell
 sudo mkdir -p /var/spool/slurmctld /var/spool/slurmd /var/log/slurm
 sudo chown -R slurm: /var/spool/slurmctld /var/spool/slurmd /var/log/slurm
 ```
@@ -76,63 +77,89 @@ sudo chown -R slurm: /var/spool/slurmctld /var/spool/slurmd /var/log/slurm
 ### Make Slurm Run
 After the preparatory work is complete, we move on to the core steps.
 
-* Go to website here and choose verison, OI choose 05
-* Copy url and run
-    * cd to your dir and wget url to
-    * wget -P <dst> url
-#### Build pkg fist
-https://slurm.schedmd.com/quickstart_admin.html#debuild
-```
+#### Install Slurm Packages
+First, we download Slurm source [here](https://www.schedmd.com/download-slurm/) and choose version `24.05.5`. We recommend to download the file to a clean directory because debian packages will be generate under this dir in the following steps. 
+```shell
 wget -P setup_slurm/ https://download.schedmd.com/slurm/slurm-24.05.5.tar.bz2
+```
 
+After downloading, we build debian packages following this [official guide](https://slurm.schedmd.com/quickstart_admin.html#debuild).
+```shell
+# Install basic Debian package build requirements
 sudo apt-get update
 sudo apt-get install build-essential fakeroot devscripts equivs
-tar -xaf slurm*tar.bz2
 
-#cd to the directory containing the Slurm source
-#Install the Slurm package dependencies:
+# Unpack the distributed tarball
+tar -xaf slurm-24.05.5.tar.bz2
+
+# cd to the directory containing the Slurm source
+cd slurm-24.05.5
+
+# Install the Slurm package dependencies
 sudo mk-build-deps -i debian/control
-#Build the Slurm packages
+
+# Build the Slurm packages
 debuild -b -uc -us
-
-
 ```
-#### INstall pkg
-Install only ctld and d
-https://slurm.schedmd.com/quickstart_admin.html#pkg_install
-```
-cd .. # deb files are there (parent dir)
 
-sudo dpkg -i slurm-smd_24.05.5-1_amd64.deb  # Seems to be a must before installing the following
+Now, debian pakcages are built and placed under the parent directory (`setup_slurm/` in our case). We continue to install targer packages that suit our needs. As we setup a single-host tiny Slurm cluster acting as a controller and a compute node at the same time, we need to install `slurm-smd`, `slurm-smd-client` (for CLI), `slurm-smd-slurmctld`, and `slurm-smd-slurmd`. For details, please refer to [Installing Packages](https://slurm.schedmd.com/quickstart_admin.html#pkg_install).
+```shell
+# cd to the parent directory
+cd ..
+
+sudo dpkg -i slurm-smd_24.05.5-1_amd64.deb
+sudo dpkg -i slurm-smd-client_24.05.5-1_amd64.deb
 sudo dpkg -i slurm-smd-slurmctld_24.05.5-1_amd64.deb
 sudo dpkg -i slurm-smd-slurmd_24.05.5-1_amd64.deb
-sudo dpkg -i slurm-smd-client_24.05.5-1_amd64.deb  # For CLI
 ```
 
-### Setup conf
-clustername: localcluster
+#### Configure Slurm
+Here comes the most tricky part, configuring Slurm. Specifically, we need to generate a correct `slurm.conf` file to make Slurm work. It's thanks to this [official configurator](https://slurm.schedmd.com/configurator.html) that we complete this mission smoothly.
+
+Following show key-value pairs we set manually. Please leave other options untouched because default settings are sufficient to make `slurmctld` and `slurmd` run.
+```
+# == Cluster Name ==
+ClusterName: localcluster
+
+# == Control Machines ==
 SlurmctldHost: localhost
+
+# == Compute Machines ==
 NodeName: localhost
 
-> lscpu | egrep 'Socket|Thread|CPU\(s\)'
-16 CPUs, 1 Sockets, 8 CoresPerSocket, 2 ThreadsPerCore
-> free -m # use available
-30528 RealMemory
+# lscpu | egrep 'Socket|Thread|CPU\(s\)'
+CPUs: 16
+Sockets: 1
+CoresPerSocket: 8
+ThreadsPerCore: 2
 
+# free -m
+# We use available
+RealMemory: 30528
+
+# == Process Tracking ==
 ProctrackType: LinuxProc
+
+# == Event Logging ==
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmdLogFile=/var/log/slurm/slurmd.log
+```
 
-Submit form, copy content and write to /etc/slurm/slurm.conf
+After filling out the form, submit it, copy the content and write the content to `/etc/slurm/slurm.conf`.
 
-
-## Start service
+#### Start Daemons
+Nex, we make `slurmctld` and `slurmd` start at boot and restart them.
+```shell
+# For controller
 sudo systemctl enable slurmctld
-sudo systemctl start slurmctld
+sudo systemctl restart slurmctld
 
+# For compute
 sudo systemctl enable slurmd
-sudo systemctl start slurmd
+sudo systemctl restart slurmd
+```
 
+We can again check `systemctl status <daemon>` or inspect log files `/var/log/slurm/slurmctld.log` and `/var/log/slurm/slurmd.log`.
 
 ## Try some commands
 No need to interact with ctld with slurm system user (nologin)?
@@ -143,9 +170,6 @@ If state == drain
 > scontrol update nodename=localhost state=idle
 > sinfo
 > srun -N 1 hostname  
-
-
-
 
 
 ### `slurmdbd`
