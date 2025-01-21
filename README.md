@@ -89,6 +89,14 @@ After downloading, we build debian packages following this [official guide](http
 sudo apt-get update
 sudo apt-get install build-essential fakeroot devscripts equivs
 
+# (Optional) Install dependencies if missing
+sudo apt install -y \
+    libncurses-dev libgtk2.0-dev libpam0g-dev libperl-dev liblua5.3-dev \
+    libhwloc-dev dh-exec librrd-dev libipmimonitoring-dev hdf5-helpers \
+    libfreeipmi-dev libhdf5-dev man2html-base libcurl4-openssl-dev \
+    libpmix-dev libhttp-parser-dev libyaml-dev libjson-c-dev \
+    libjwt-dev liblz4-dev libmariadb-dev libdbus-1-dev librdkafka-dev
+
 # Unpack the distributed tarball
 tar -xaf slurm-24.05.5.tar.bz2
 
